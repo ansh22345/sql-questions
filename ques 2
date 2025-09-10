@@ -1,0 +1,77 @@
+-- STEP 0: Setup (Run once)
+CREATE TABLE IF NOT EXISTS StudentEnrollments (
+    enrollment_id INT PRIMARY KEY,
+    student_name VARCHAR(100) NOT NULL,
+    course_id VARCHAR(10) NOT NULL,
+    enrollment_date DATE NOT NULL,
+    UNIQUE (student_name, course_id)
+);
+
+-- Clear the table for clean test
+DELETE FROM StudentEnrollments;
+
+-- PART A: Prevent duplicate enrollments using unique constraint
+-- User 1 inserts a valid enrollment
+START TRANSACTION;
+
+INSERT INTO StudentEnrollments (enrollment_id, student_name, course_id, enrollment_date)
+VALUES (1, 'Ashish', 'CSE101', '2024-07-01');
+
+COMMIT;
+
+
+-- User 2 tries to insert the same enrollment (should fail)
+START TRANSACTION;
+
+-- This insert will violate the unique constraint and cause error
+INSERT INTO StudentEnrollments (enrollment_id, student_name, course_id, enrollment_date)
+VALUES (2, 'Ashish', 'CSE101', '2024-07-02');
+
+-- On error, rollback
+ROLLBACK;
+
+-- Check current table state
+SELECT * FROM StudentEnrollments;
+
+
+-- PART B & C: Simulate locking with SELECT FOR UPDATE to prevent concurrent conflicting updates
+
+-- Assume this is Session/User A (run separately):
+
+-- User A locks the row for Ashish in CSE101
+START TRANSACTION;
+
+SELECT * FROM StudentEnrollments
+WHERE student_name = 'Ashish' AND course_id = 'CSE101'
+FOR UPDATE;
+
+-- User A updates enrollment_date but does NOT commit yet
+UPDATE StudentEnrollments
+SET enrollment_date = '2024-07-10'
+WHERE student_name = 'Ashish' AND course_id = 'CSE101';
+
+-- At this point, keep this transaction open — DO NOT COMMIT OR ROLLBACK yet
+-- This locks the row
+
+
+-- Now, in Session/User B (run separately while User A's transaction is still open):
+
+START TRANSACTION;
+
+-- User B tries to update the same record, this will block until User A finishes
+UPDATE StudentEnrollments
+SET enrollment_date = '2024-07-15'
+WHERE student_name = 'Ashish' AND course_id = 'CSE101';
+
+-- After User A commits or rollbacks, User B's update proceeds
+
+COMMIT;
+
+
+-- Back to Session/User A: Commit to release lock
+COMMIT;
+
+
+-- Finally, check the final state of the table (run after both commits)
+
+SELECT * FROM StudentEnrollments;
