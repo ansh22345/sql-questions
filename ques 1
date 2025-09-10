@@ -1,0 +1,53 @@
+-- Create table (run once)
+CREATE TABLE FeePayments (
+    payment_id INT PRIMARY KEY,
+    student_name VARCHAR(100) NOT NULL,
+    amount DECIMAL(10,2) CHECK (amount > 0),
+    payment_date DATE NOT NULL
+);
+
+-- Part A: Insert multiple fee payments in one transaction
+BEGIN TRANSACTION;
+
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date) VALUES
+(1, 'Ashish', 5000.00, '2024-06-01'),
+(2, 'Smaran', 4500.00, '2024-06-02'),
+(3, 'Vaibhav', 5500.00, '2024-06-03');
+
+COMMIT;
+
+-- Check data after Part A
+SELECT * FROM FeePayments;
+
+
+-- Part B: Simulate failed insertion and rollback
+BEGIN TRANSACTION;
+
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date) VALUES
+(4, 'Kiran', 4800.00, '2024-06-04');
+
+-- This will fail due to duplicate payment_id and negative amount
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date) VALUES
+(1, 'Ashish', -1000.00, '2024-06-05');
+
+-- On failure, rollback entire transaction
+ROLLBACK;
+
+-- Check data after Part B (should be unchanged)
+SELECT * FROM FeePayments;
+
+
+-- Part C: Partial failure causing rollback
+BEGIN TRANSACTION;
+
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date) VALUES
+(5, 'Rohit', 4700.00, '2024-06-06');
+
+-- This insert will fail because student_name is NULL (NOT NULL constraint)
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date) VALUES
+(6, NULL, 4300.00, '2024-06-07');
+
+ROLLBACK;
+
+-- Final check to verify no partial inserts happened
+SELECT * FROM FeePayments;
